@@ -2,6 +2,7 @@ import { create } from 'zustand'
 import { ApiError, CLIENT_ID, api, useAuth } from './auth'
 import { mergePage } from './merge'
 import { seed, useStore } from './store'
+import { go } from './nav'
 import type { Page } from './types'
 
 const PUSH_DELAY = 250
@@ -190,6 +191,8 @@ export async function logout() {
   stopSync()
   useStore.setState({ pages: {}, currentId: null })
   useAuth.getState().set({ token: null, user: null, workspaces: [], workspaceId: null, sync: 'idle' })
+  // back to the presentation page, not the sign-in form the session may have started from
+  go('/')
 }
 
 export async function switchWorkspace(id: string) {
