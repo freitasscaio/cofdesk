@@ -577,6 +577,12 @@ const routes: [string, RegExp, Handler][] = [
     db.prepare('DELETE FROM shares WHERE workspace_id = ? AND page_id = ?').run(ws, pageId)
     return [200, { token: null }]
   }],
+  // every page of the workspace that is published on the web
+  ['GET', /^\/api\/workspaces\/([\w-]+)\/shares$/, (req, [ws]) => {
+    roleIn(ws, auth(req).id)
+    return [200, db.prepare(`SELECT s.token, s.page_id AS pageId, s.created_at AS createdAt, u.name AS createdBy
+      FROM shares s JOIN users u ON u.id = s.created_by WHERE s.workspace_id = ? ORDER BY s.created_at DESC`).all(ws)]
+  }],
   // public, no login: the shared page and its subpages, read-only
   ['GET', /^\/api\/public\/([\w-]+)$/, (_req, [token]) => {
     const share = db.prepare('SELECT workspace_id, page_id FROM shares WHERE token = ?').get(token) as { workspace_id: string; page_id: string } | undefined

@@ -8,7 +8,8 @@ import { Landing } from './components/Landing'
 import { PublicPage } from './components/PublicPage'
 import { Legal, legalDocOf } from './components/Legal'
 import { ConsentBanner } from './components/Consent'
-import { AccountDialog, useAccountUI } from './components/Account'
+import { SettingsDialog } from './components/Settings'
+import { useSettingsUI } from './settingsUI'
 import { Home } from './components/Home'
 import { CalendarHome, useCalendarNotice } from './components/CalendarHome'
 import { Search } from './components/Search'
@@ -77,7 +78,7 @@ function Workspace() {
   const searchOpen = useStore(s => s.searchOpen)
   const calendarOpen = useStore(s => s.calendarOpen)
   const askOpen = useAiUI(s => s.ask)
-  const accountOpen = useAccountUI(s => s.open)
+  const settingsOpen = useSettingsUI(s => s.section !== null)
   const { setSearchOpen, toggleSidebar } = useStore.getState()
 
   useEffect(() => { document.documentElement.dataset.theme = theme }, [theme])
@@ -122,7 +123,7 @@ function Workspace() {
       </main>
       {searchOpen && <Search />}
       {askOpen && <AskAi />}
-      {accountOpen && <AccountDialog />}
+      {settingsOpen && <SettingsDialog />}
     </div>
   )
 }

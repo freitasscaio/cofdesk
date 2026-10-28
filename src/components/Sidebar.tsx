@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import {
-  ChevronDown, ChevronRight, ChevronsLeft, Copy, Download, House, LayoutTemplate, Moon, MoreHorizontal, PenLine, Plus,
-  RotateCcw, Search, Settings, SquarePen, Star, Sun, Table2, Trash2, Upload, UserPlus, X, Sparkles, CalendarDays,
+  ChevronDown, ChevronRight, ChevronsLeft, ChevronsUpDown, Copy, House, LayoutTemplate, LogOut, Moon, MoreHorizontal, PenLine, Plus,
+  RotateCcw, Search, Settings, ShieldCheck, SquarePen, Star, Sun, Table2, Trash2, UserPlus, X, Sparkles, CalendarDays,
 } from 'lucide-react'
 import { childrenOf, useStore } from '../store'
 import type { Page } from '../types'
@@ -11,6 +11,10 @@ import { Members, SyncBadge, WorkspaceMenu } from './WorkspaceMenu'
 import { InboxButton } from './Comments'
 import { useAiUI } from './Ai'
 import { IconView, PageIcon } from './icons'
+import { Avatar } from './Settings'
+import { useSettingsUI } from '../settingsUI'
+import { useAuth } from '../auth'
+import { logout } from '../sync'
 
 const I = { size: 18, strokeWidth: 1.8 }
 
@@ -72,24 +76,11 @@ export function Sidebar() {
   const pages = useStore(s => s.pages)
   const currentId = useStore(s => s.currentId)
   const calendarOpen = useStore(s => s.calendarOpen)
-  const theme = useStore(s => s.theme)
-  const { navigate, createPage, setTheme, toggleSidebar, setSearchOpen, restorePage, deleteForever, importData } = useStore.getState()
+  const { navigate, createPage, toggleSidebar, setSearchOpen, restorePage, deleteForever } = useStore.getState()
   const roots = childrenOf(pages, null)
   const favorites = Object.values(pages).filter(p => p.favorite && !p.trashed)
   const trash = Object.values(pages).filter(p => p.trashed)
   const [trashQuery, setTrashQuery] = useState('')
-
-  const exportAll = () => {
-    const blob = new Blob([JSON.stringify(pages, null, 2)], { type: 'application/json' })
-    const a = document.createElement('a')
-    a.href = URL.createObjectURL(blob)
-    a.download = `cofdesk-backup-${new Date().toISOString().slice(0, 10)}.json`
-    a.click()
-  }
-  const importAll = (file: File) => file.text().then(t => {
-    try { if (confirm('Substituir todo o workspace pelo backup?')) importData(JSON.parse(t)) }
-    catch { alert('Arquivo inválido') }
-  })
 
   return (
     <aside className="sidebar" aria-label="Navegação do workspace">
@@ -126,19 +117,7 @@ export function Sidebar() {
         <button className="side-btn muted-btn" onClick={() => navigate(createPage(null, 'database'))}><Table2 {...I} /> Novo banco de dados</button>
 
         <div className="side-section"><span>&nbsp;</span></div>
-        <Pop width={260} trigger={o => <button className="side-btn" onClick={o}><Settings {...I} /> Configurações</button>}>
-          {() => <>
-            <div className="popover-title">Aparência</div>
-            <button className="menu-item" onClick={() => setTheme(theme === 'dark' ? 'light' : 'dark')}>
-              {theme === 'dark' ? <><Sun {...I} /> Modo claro</> : <><Moon {...I} /> Modo escuro</>}
-            </button>
-            <div className="popover-title">Dados</div>
-            <button className="menu-item" onClick={exportAll}><Download {...I} /> Exportar backup (JSON)</button>
-            <label className="menu-item"><Upload {...I} /> Importar backup
-              <input type="file" accept=".json" hidden onChange={e => e.target.files?.[0] && importAll(e.target.files[0])} />
-            </label>
-          </>}
-        </Pop>
+        <button className="side-btn" onClick={() => useSettingsUI.getState().open('preferencias')}><Settings {...I} /> Configurações</button>
         <Pop width={300} trigger={o => <button className="side-btn" onClick={o}><LayoutTemplate {...I} /> Modelos</button>}>
           {close => <>
             <div className="popover-title">Criar a partir de um modelo</div>
@@ -173,7 +152,37 @@ export function Sidebar() {
           {() => <Members />}
         </Pop>
         <SyncBadge />
+        <AccountButton />
       </div>
     </aside>
+  )
+}
+
+/** The signed-in person, at the bottom left: profile, settings, theme and sign out. */
+function AccountButton() {
+  const user = useAuth(s => s.user)
+  const theme = useStore(s => s.theme)
+  if (!user) return null
+  const open = useSettingsUI.getState().open
+  return (
+    <Pop width={260} trigger={o => (
+      <button className="account-btn" onClick={o} aria-label={`Conta: ${user.name}`}>
+        <Avatar name={user.name} size={24} />
+        <span className="account-btn-text"><strong>{user.name}</strong><small>{user.email}</small></span>
+        <ChevronsUpDown size={14} className="ico-muted" aria-hidden />
+      </button>
+    )}>
+      {close => <>
+        <div className="popover-title">{user.email}</div>
+        <button className="menu-item" onClick={() => { close(); open('perfil') }}><Avatar name={user.name} size={18} /> Perfil</button>
+        <button className="menu-item" onClick={() => { close(); open('preferencias') }}><Settings {...I} /> Configurações</button>
+        <button className="menu-item" onClick={() => { close(); open('privacidade') }}><ShieldCheck {...I} /> Privacidade e dados</button>
+        <button className="menu-item" onClick={() => useStore.getState().setTheme(theme === 'dark' ? 'light' : 'dark')}>
+          {theme === 'dark' ? <><Sun {...I} /> Modo claro</> : <><Moon {...I} /> Modo escuro</>}
+        </button>
+        <div className="menu-sep" />
+        <button className="menu-item" onClick={() => { close(); logout() }}><LogOut {...I} /> Sair</button>
+      </>}
+    </Pop>
   )
 }

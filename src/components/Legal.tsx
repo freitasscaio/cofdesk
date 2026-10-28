@@ -174,7 +174,7 @@ function Privacy() {
         <li>se opor a um tratamento e pedir a revisão de decisões automatizadas.</li>
       </ul>
       <p>
-        <strong>Como exercer:</strong> dentro do CofDesk, no menu do workspace › <em>Minha conta e privacidade</em>, você pode corrigir seu nome,
+        <strong>Como exercer:</strong> dentro do CofDesk, em <em>Configurações › Privacidade e dados</em> (botão da sua conta, no canto inferior esquerdo), você pode corrigir seu nome,
         baixar todos os seus dados e excluir sua conta. Para os demais pedidos, escreva para <Mail />. Respondemos em até 15 dias.
         Você também pode reclamar à Autoridade Nacional de Proteção de Dados (<a href="https://www.gov.br/anpd" target="_blank" rel="noreferrer noopener">ANPD</a>).
       </p>
@@ -230,7 +230,7 @@ function Terms() {
       <ul>
         <li>Você precisa ter 18 anos ou mais e informar um e-mail válido que seja seu.</li>
         <li>Você é responsável por manter sua senha em segurança e pelo que for feito na sua conta. Avise-nos em <Mail /> se suspeitar de uso indevido.</li>
-        <li>Você pode excluir sua conta quando quiser, em <em>Minha conta e privacidade</em>.</li>
+        <li>Você pode excluir sua conta quando quiser, em <em>Configurações › Privacidade e dados</em>.</li>
       </ul>
 
       <h2>3. Seu conteúdo</h2>

@@ -786,3 +786,55 @@ main:focus, section:focus { outline: none; }
 .btn:disabled { opacity: .55; cursor: not-allowed; }
 .account-status { min-height: 18px; color: var(--muted); font-size: 13px; }
 button.tree-title, button.trash-title { display: block; min-width: 0; flex: 1; text-align: left; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; color: inherit; }
+
+/* ============ Settings ============ */
+.settings-bg { padding: 0; align-items: center; }
+.settings { position: relative; display: grid; grid-template-columns: 240px 1fr; width: min(1150px, calc(100vw - 32px)); height: min(760px, calc(100vh - 64px)); background: var(--bg); border-radius: 12px; box-shadow: var(--shadow); overflow: hidden; }
+.settings-nav { background: var(--side); padding: 8px 8px 16px; overflow-y: auto; font-size: 14px; }
+.settings-search { display: flex; align-items: center; gap: 6px; height: 30px; padding: 0 8px; margin-bottom: 8px; border: 1px solid var(--border-strong); border-radius: 6px; background: var(--input); color: var(--muted); }
+.settings-search input { flex: 1; min-width: 0; border: 0; background: none; outline: none; font-size: 14px; color: var(--text); }
+.settings-search:focus-within { border-color: var(--focus); }
+.settings-group { font-size: 12px; font-weight: 500; color: var(--muted); padding: 14px 8px 4px; }
+.settings-item { display: flex; align-items: center; gap: 10px; width: 100%; height: 30px; padding: 0 8px; border-radius: 6px; text-align: left; color: var(--text-2); }
+.settings-item span { overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.settings-item svg { flex-shrink: 0; color: var(--text-2); }
+.settings-item:hover { background: var(--hover); }
+.settings-item.on { background: var(--active); color: var(--text); font-weight: 500; }
+.settings-body { position: relative; overflow-y: auto; }
+.settings-close { position: absolute; top: 12px; right: 12px; z-index: 1; }
+.settings-content { max-width: 800px; margin: 0 auto; padding: 36px clamp(20px, 5vw, 60px) 48px; font-size: 14px; }
+.settings-head { margin-bottom: 18px; }
+.settings-head h2 { font-size: 24px; font-weight: 600; margin: 0 0 6px; }
+.settings-head p { margin: 0; color: var(--text-2); font-size: 15px; line-height: 1.5; }
+.settings-sub { font-size: 16px; font-weight: 600; margin: 32px 0 6px; padding-bottom: 8px; border-bottom: 1px solid var(--border); }
+.settings-sub.danger-title { color: var(--danger-text); }
+.set-row { display: flex; align-items: center; justify-content: space-between; gap: 24px; padding: 12px 0; }
+.set-text { min-width: 0; }
+.set-title { font-weight: 500; color: var(--text); display: flex; align-items: center; gap: 6px; }
+.set-desc { color: var(--muted); font-size: 13px; line-height: 1.5; margin-top: 2px; overflow-wrap: anywhere; }
+.set-control { display: flex; gap: 8px; flex-shrink: 0; align-items: center; }
+.set-control a.btn, .settings a.btn { text-decoration: none; }
+.inline-form { display: flex; gap: 8px; align-items: center; }
+.inline-form .input { width: 240px; }
+.profile-card { display: flex; align-items: center; gap: 18px; padding: 8px 0 4px; }
+.profile-name label { display: block; font-size: 12px; color: var(--muted); margin-bottom: 4px; }
+.delete-form { border: 1px solid var(--border-strong); border-radius: 8px; padding: 14px; margin: 4px 0 8px; }
+.file-btn { cursor: pointer; position: relative; }
+.file-btn:focus-within { outline: 2px solid var(--focus); outline-offset: 2px; }
+.settings-status { min-height: 20px; margin-top: 12px; color: var(--muted); font-size: 13px; }
+.settings .members .popover-title { padding-left: 0; }
+.user-avatar { display: inline-grid; place-items: center; flex-shrink: 0; border-radius: 50%; background: var(--tag-gray); color: var(--text); font-weight: 600; }
+
+/* account at the bottom left of the sidebar */
+.account-btn { display: flex; align-items: center; gap: 8px; width: 100%; padding: 6px 8px; margin-top: 4px; border-radius: 6px; text-align: left; }
+.account-btn:hover { background: var(--hover); }
+.account-btn-text { flex: 1; min-width: 0; display: flex; flex-direction: column; line-height: 1.25; }
+.account-btn-text strong { font-size: 14px; font-weight: 500; color: var(--text); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+.account-btn-text small { font-size: 12px; color: var(--muted); overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+
+@media (max-width: 720px) {
+  .settings { grid-template-columns: 1fr; grid-template-rows: auto 1fr; height: calc(100vh - 32px); }
+  .settings-nav { max-height: 34vh; }
+  .set-row { flex-direction: column; align-items: flex-start; gap: 8px; }
+  .inline-form .input { width: 100%; }
+}

@@ -1,9 +1,9 @@
 import { useEffect, useState } from 'react'
-import { Check, ChevronDown, Cloud, CloudOff, Eye, LoaderCircle, LogOut, PenLine, Plus, ShieldCheck, X } from 'lucide-react'
+import { Check, ChevronDown, Cloud, CloudOff, Eye, LoaderCircle, PenLine, Plus, Settings, Users, X } from 'lucide-react'
 import { api, useAuth } from '../auth'
-import { logout, switchWorkspace } from '../sync'
+import { switchWorkspace } from '../sync'
 import { Pop } from './Pop'
-import { useAccountUI } from './Account'
+import { useSettingsUI } from '../settingsUI'
 
 const ROLE = { owner: 'Proprietário', editor: 'Editor', viewer: 'Leitor' }
 const I = { size: 16, strokeWidth: 1.8 }
@@ -67,8 +67,8 @@ export function WorkspaceMenu() {
             close()
           }}><Plus {...I} /> Novo espaço de trabalho</button>
           <div className="menu-sep" />
-          <button className="menu-item" onClick={() => { close(); useAccountUI.getState().setOpen(true) }}><ShieldCheck {...I} /> Minha conta e privacidade</button>
-          <button className="menu-item muted-btn" onClick={() => { close(); logout() }}><LogOut {...I} /> Sair</button>
+          <button className="menu-item" onClick={() => { close(); useSettingsUI.getState().open('geral') }}><Settings {...I} /> Configurações</button>
+          <button className="menu-item" onClick={() => { close(); useSettingsUI.getState().open('pessoas') }}><Users {...I} /> Gerenciar membros</button>
         </div>
       )}
     </Pop>
@@ -98,8 +98,8 @@ export function Members() {
             setEmail(''); setMsg('Membro adicionado'); load()
           } catch (err) { setMsg((err as Error).message) }
         }}>
-          <input className="input sm" type="email" required placeholder="E-mail, separado por vírgulas" value={email} onChange={e => setEmail(e.target.value)} />
-          <select value={role} onChange={e => setRole(e.target.value)}>
+          <input className="input sm" type="email" required aria-label="E-mail de quem convidar" placeholder="E-mail, separado por vírgulas" value={email} onChange={e => setEmail(e.target.value)} />
+          <select aria-label="Papel" value={role} onChange={e => setRole(e.target.value)}>
             <option value="editor">Editor</option><option value="viewer">Leitor</option>
           </select>
           <button className="btn primary">Convidar</button>

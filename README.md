@@ -143,7 +143,7 @@ O servidor lê o `.env` ao iniciar; sem a chave, tudo funciona menos a IA, que m
 - **Consentimento**: aviso na primeira visita com *Aceitar todos*, *Somente necessários* e *Personalizar*, todos com o mesmo
   destaque; reabre em *Preferências de cookies* nos rodapés. Vídeos, mapas e outros conteúdos de terceiros só carregam com
   consentimento (ou um por vez, em *Carregar este conteúdo*)
-- **Direitos do titular** (menu do workspace → *Minha conta e privacidade*): corrigir o nome, **baixar todos os dados** em JSON
+- **Direitos do titular** (*Configurações → Privacidade e dados*, pelo botão da conta no canto inferior esquerdo): corrigir o nome, **baixar todos os dados** em JSON
   (`GET /api/me/export`) e **excluir a conta** (`POST /api/me/delete`, com e-mail e senha). Um workspace com outros membros
   passa para um deles; sem membros, é apagado. As agendas conectadas são desconectadas e o acesso no Google é revogado
 - **Registros de acesso** (Marco Civil, art. 15): IP, porta, data e hora de login e cadastro, guardados por 6 meses e apagados
