@@ -12,6 +12,7 @@ import { go } from '../nav'
 import { useSettingsUI, type SettingsSection } from '../settingsUI'
 import { Members } from './WorkspaceMenu'
 import { PageIcon } from './icons'
+import { WEB_URL } from '../config'
 
 const I = { size: 16, strokeWidth: 1.8 }
 
@@ -359,7 +360,7 @@ function PublicPages() {
               <div className="set-desc">Publicada por {s.createdBy} em {new Date(s.createdAt).toLocaleDateString('pt-BR')}</div>
             </div>
             <div className="set-control">
-              <a className="btn" href={`/p/${s.token}`} target="_blank" rel="noopener">Abrir</a>
+              <a className="btn" href={`${WEB_URL}/p/${s.token}`} target="_blank" rel="noopener">Abrir</a>
               {canEdit && (
                 <button type="button" className="btn" aria-label={`Tirar ${title} do ar`} onClick={() =>
                   api(`/workspaces/${ws}/pages/${s.pageId}/share`, { method: 'DELETE' }).then(() => { load(); say('Página tirada do ar.') }).catch(e => say(e.message))

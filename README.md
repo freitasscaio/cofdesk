@@ -160,6 +160,47 @@ O servidor lê o `.env` ao iniciar; sem a chave, tudo funciona menos a IA, que m
 (*Branding* da tela de consentimento OAuth) informe `{PUBLIC_URL}/privacidade` e `{PUBLIC_URL}/termos`; confirme que o
 provedor de hospedagem apaga backups em até 30 dias (prazo citado na política).
 
+### Aplicativo de desktop e publicação
+
+O CofDesk funciona em três partes, todas com o mesmo front-end:
+
+| Parte | Onde roda | O que faz |
+|---|---|---|
+| **Servidor** (`server/`) | Railway, Render ou uma VPS (precisa de disco permanente) | API, tempo real, login e banco SQLite |
+| **Site** (`src/`) | Vercel (`vercel.json`) ou o próprio servidor | página de apresentação e app na web |
+| **App de desktop** (`desktop/`) | computador da pessoa (Electron) | o mesmo app, aberto sem internet; sincroniza quando conecta |
+
+- **Offline**: o app guarda uma cópia das páginas e as edições feitas sem conexão (`cofdesk-unsynced:<workspace>`).
+  Quando o servidor volta, as edições são mescladas bloco a bloco com o que mudou lá. Testado com o app fechado à força
+  no meio da edição offline e com a mesma página alterada nos dois lados
+- **Login com Google no app**: abre o navegador do sistema; o servidor devolve o resultado por `cofdesk://login?oauth=…`
+  (e `cofdesk://?calendar=…` ao conectar a agenda). O app registra o endereço `cofdesk://` ao ser instalado
+- **Atualizações**: cada tag `v*` enviada ao GitHub dispara `.github/workflows/desktop.yml`, que gera os instaladores
+  de Windows e Linux e publica um *Release*. Os apps instalados baixam a versão nova sozinhos e pedem para reiniciar
+- **Endereços**: o front-end usa `VITE_API_URL` (servidor) e `VITE_WEB_URL` (site), definidos na hora da build
+  ([src/config.ts](src/config.ts)). No servidor: `PUBLIC_URL` (o próprio servidor), `WEB_URL` (o site) e `PORT`
+
+**Desenvolvimento do app**:
+```bash
+cd desktop && npm install && cd app && npm install && cd ..
+VITE_API_URL=http://localhost:3001 npm run web   # gera o front-end do app apontando para o servidor local
+npm start                                         # abre o app (com o npm run dev rodando na raiz)
+npm run dist                                      # gera o instalador em desktop/release, sem publicar
+```
+
+**Publicar uma versão**:
+1. No GitHub, em *Settings → Secrets and variables → Actions → Variables*, crie `COFDESK_API_URL` (ex.:
+   `https://api.cofdesk.com.br`) e `COFDESK_WEB_URL` (ex.: `https://cofdesk.com.br`)
+2. `git tag v0.2.0 && git push origin v0.2.0`
+3. O GitHub Actions publica o *Release* com `CofDesk-Setup-0.2.0.exe` e `CofDesk-0.2.0.AppImage`
+
+**Vercel**: importe o repositório, defina `VITE_API_URL` e `VITE_WEB_URL` nas variáveis de ambiente do projeto e
+aponte o domínio. No servidor, defina `WEB_URL` com o endereço da Vercel para o CORS e os retornos do login.
+
+**Limites conhecidos**: sem certificado de assinatura, o Windows mostra o aviso do SmartScreen na instalação; o macOS
+precisa da conta Apple Developer (US$ 99/ano) para assinar e notarizar, por isso ainda não está no fluxo de publicação.
+O repositório precisa continuar público para os apps acharem as atualizações sem senha.
+
 ## Roteiro
 
 | Fase | Entregas |
@@ -169,5 +210,5 @@ provedor de hospedagem apaga backups em até 30 dias (prazo citado na política)
 | ~~3. Editor avançado~~ | ✅ Feito: blocos aninhados, colunas, tabelas simples, embeds, marcadores web, modelos. Pendente: equações, blocos sincronizados, largura ajustável das colunas, upload de PDF/arquivos |
 | ~~4. Bancos avançados~~ | ✅ Feito: relações (de mão dupla), rollups, fórmulas, linha do tempo, dashboards. Pendente: propriedades Pessoa e Arquivos, agrupamento na tabela, vários filtros combinados, filtros por bloco do dashboard |
 | ~~5. Histórico e IA~~ | ✅ Feito: histórico ilimitado com restauração, IA no editor, perguntas ao workspace. Pendente: comparar versões lado a lado, IA dentro de bancos de dados (preencher propriedades), limite de uso por workspace |
-| **6. Desktop** | Tauri (Windows/macOS/Linux) reutilizando este mesmo código |
+| ~~6. Desktop~~ | ✅ Feito: Electron (Windows e Linux) com uso offline, login pelo navegador e atualização automática pelo GitHub. Pendente: macOS assinado, certificado de assinatura no Windows |
 | **7. Mobile** | Capacitor (iOS App Store / Google Play) reutilizando este mesmo código, com ajustes de toque |

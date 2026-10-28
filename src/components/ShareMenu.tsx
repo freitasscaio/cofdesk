@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { api, useAuth } from '../auth'
 import { Pop } from './Pop'
 import { ArrowUpRight, Check, Globe, Link2 } from 'lucide-react'
+import { WEB_URL } from '../config'
 
 export function ShareMenu({ pageId }: { pageId: string }) {
   const workspaceId = useAuth(s => s.workspaceId)
@@ -12,8 +13,8 @@ export function ShareMenu({ pageId }: { pageId: string }) {
 
   useEffect(() => { api(base).then(r => setToken(r.token)).catch(() => {}) }, [base])
 
-  const publicUrl = token ? `${location.origin}/p/${token}` : ''
-  const internalUrl = `${location.origin}/#/${pageId}`
+  const publicUrl = token ? `${WEB_URL}/p/${token}` : ''
+  const internalUrl = `${WEB_URL}/#/${pageId}`
   const copy = (text: string, what: string) => { navigator.clipboard.writeText(text); setCopied(what); setTimeout(() => setCopied(''), 1500) }
 
   return (

@@ -4,7 +4,13 @@ import { db } from './db.ts'
 // "Continue with Google" (OpenID Connect, authorization code flow with PKCE), plus the Google consent
 // used to connect a Google Calendar. Configured by env vars.
 
+/** Public address of this server; Google sends people back to it. */
 export const PUBLIC_URL = (process.env.PUBLIC_URL ?? 'http://localhost:5173').replace(/\/$/, '')
+/** Public address of the website, when it is served apart from the server (e.g. on Vercel). */
+export const WEB_URL = (process.env.WEB_URL || PUBLIC_URL).replace(/\/$/, '')
+/** The desktop app is opened back through this address scheme after signing in in the browser. */
+export const DESKTOP_SCHEME = 'cofdesk://'
+export type Client = 'web' | 'desktop'
 
 const google = process.env.GOOGLE_CLIENT_ID && process.env.GOOGLE_CLIENT_SECRET
   ? { id: process.env.GOOGLE_CLIENT_ID, secret: process.env.GOOGLE_CLIENT_SECRET }
@@ -37,19 +43,24 @@ db.exec(`
   );
 `)
 
+// which app started the sign-in: the website or the desktop app (added after the first release)
+if (!(db.prepare('PRAGMA table_info(oauth_states)').all() as { name: string }[]).some(c => c.name === 'client')) {
+  db.exec("ALTER TABLE oauth_states ADD COLUMN client TEXT NOT NULL DEFAULT 'web'")
+}
+
 const b64url = (b: Buffer | string) => Buffer.from(b).toString('base64url')
 const STATE_TTL = 10 * 60_000
 
 export type Purpose = 'login' | 'calendar'
 
 /** Starts a sign-in or consent: remembers state/PKCE on the server and returns the provider's URL. */
-export function startUrl(provider: 'google', purpose: Purpose, userId: string | null = null) {
+export function startUrl(provider: 'google', purpose: Purpose, userId: string | null = null, client: Client = 'web') {
   const state = b64url(randomBytes(24))
   const verifier = b64url(randomBytes(32))
   const nonce = b64url(randomBytes(16))
   db.prepare('DELETE FROM oauth_states WHERE created_at < ?').run(Date.now() - STATE_TTL)
-  db.prepare('INSERT INTO oauth_states (state, provider, purpose, verifier, nonce, user_id, created_at) VALUES (?, ?, ?, ?, ?, ?, ?)')
-    .run(state, provider, purpose, verifier, nonce, userId, Date.now())
+  db.prepare('INSERT INTO oauth_states (state, provider, purpose, verifier, nonce, user_id, client, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)')
+    .run(state, provider, purpose, verifier, nonce, userId, client, Date.now())
 
   if (!google) throw new Error('google-off')
   const calendar = purpose === 'calendar'
@@ -68,7 +79,7 @@ export function startUrl(provider: 'google', purpose: Purpose, userId: string | 
   return `https://accounts.google.com/o/oauth2/v2/auth?${q}`
 }
 
-type State = { provider: string; purpose: Purpose; verifier: string; nonce: string; user_id: string | null; created_at: number }
+type State = { provider: string; purpose: Purpose; verifier: string; nonce: string; user_id: string | null; client: Client; created_at: number }
 
 /** Reads and forgets a state; each one works once. */
 export function takeState(state: string, provider: string): State {

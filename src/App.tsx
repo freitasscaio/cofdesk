@@ -16,6 +16,7 @@ import { Search } from './components/Search'
 import { AskAi, useAiUI } from './components/Ai'
 import { ApiError, api, useAuth } from './auth'
 import { logout, startSync } from './sync'
+import { desktop } from './config'
 
 const publicToken = location.pathname.match(/^\/p\/([\w-]+)/)?.[1]
 const pageFromHash = () => location.hash.match(/^#\/([\w-]+)/)?.[1] ?? null
@@ -60,13 +61,20 @@ function PrivateApp() {
         const fromLink = pageFromHash()
         if (fromLink && useStore.getState().pages[fromLink]) useStore.getState().navigate(fromLink)
       })
-      .catch(e => { if (e instanceof ApiError && e.status === 401) logout(); else useAuth.getState().set({ sync: 'offline' }) })
+      .catch(async e => {
+        if (e instanceof ApiError && e.status === 401) return logout()
+        // no connection: open the copy saved on this device; sync catches up when the server is reachable
+        const ws = useAuth.getState().workspaceId
+        if (ws) await startSync(ws)
+        else useAuth.getState().set({ sync: 'offline' })
+      })
       .finally(() => { if (!cancelled) setReady(true) })
     return () => { cancelled = true }
   }, [token])
 
   // logged out: the product presentation, with sign-in and sign-up on their own paths
-  if (!token) return path.startsWith('/login') || path.startsWith('/signup') ? <Login key={path} /> : <Landing />
+  // the installed app goes straight to sign-in; the presentation page is for the website
+  if (!token) return desktop || path.startsWith('/login') || path.startsWith('/signup') ? <Login key={path} /> : <Landing />
   if (!ready) return <div className="loading">Carregando seu workspace…</div>
   return <Workspace />
 }

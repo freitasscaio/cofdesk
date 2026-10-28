@@ -1,5 +1,6 @@
 import { create } from 'zustand'
 import { persist } from 'zustand/middleware'
+import { apiUrl } from './config'
 
 export interface User { id: string; email: string; name: string }
 export interface Workspace { id: string; name: string; role: 'owner' | 'editor' | 'viewer' }
@@ -31,7 +32,7 @@ export class ApiError extends Error {
 
 export async function api<T = any>(path: string, init: { method?: string; body?: unknown } = {}): Promise<T> {
   const token = useAuth.getState().token
-  const res = await fetch(`/api${path}`, {
+  const res = await fetch(apiUrl(path), {
     method: init.method ?? (init.body ? 'POST' : 'GET'),
     headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID, ...(token ? { Authorization: `Bearer ${token}` } : {}) },
     body: init.body ? JSON.stringify(init.body) : undefined,

@@ -5,6 +5,7 @@ import { PageView } from './PageView'
 import { Logo } from './Login'
 import { LEGAL } from '../legal'
 import { go } from '../nav'
+import { WEB_URL, apiUrl } from '../config'
 
 /**
  * A published page for visitors without an account. The shared pages are loaded into the
@@ -25,7 +26,7 @@ export function PublicPage({ token }: { token: string }) {
   useEffect(() => {
     // never let the visitor's view overwrite a logged-in user's cached workspace
     useStore.persist.setOptions({ name: 'cofdesk-public-view' })
-    fetch(`/api/public/${token}`)
+    fetch(apiUrl(`/public/${token}`))
       .then(async r => { const d = await r.json(); if (!r.ok) throw new Error(d.error); return d })
       .then(d => {
         useStore.setState({ pages: Object.fromEntries(d.pages.map((p: any) => [p.id, p])), currentId: d.rootId })
@@ -45,7 +46,7 @@ export function PublicPage({ token }: { token: string }) {
         </main>
         <a className="public-badge" href="/"><Logo size={18} /> Feito com CofDesk</a>
         <nav className="public-legal" aria-label="Informações legais">
-          <a href={`mailto:${LEGAL.privacyEmail}?subject=${encodeURIComponent('Denúncia de página publicada')}&body=${encodeURIComponent(`Link: ${location.href}
+          <a href={`mailto:${LEGAL.privacyEmail}?subject=${encodeURIComponent('Denúncia de página publicada')}&body=${encodeURIComponent(`Link: ${WEB_URL}/p/${token}
 Motivo: `)}`}>Denunciar página</a>
           <a href="/privacidade" onClick={e => { e.preventDefault(); go('/privacidade') }}>Privacidade</a>
           <a href="/termos" onClick={e => { e.preventDefault(); go('/termos') }}>Termos</a>

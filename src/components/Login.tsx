@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { ArrowLeft } from 'lucide-react'
 import { api, useAuth } from '../auth'
 import { go } from '../nav'
+import { apiUrl, desktop } from '../config'
 
 type Step = 'email' | 'password' | 'register' | 'verify' | 'social'
 
@@ -113,7 +114,10 @@ export function Login() {
 
   // in development the buttons always show (and explain when a provider isn't configured); in production only configured ones
   const showGoogle = google === true || (google === false && import.meta.env.DEV)
-  const googleButton = <a className="btn auth-provider" href="/api/auth/google/start"><GoogleMark /> Continuar com Google</a>
+  // the desktop app signs in through the system browser, which hands the result back via cofdesk://
+  const googleStart = apiUrl(`/auth/google/start${desktop ? '?client=desktop' : ''}`)
+  const googleButton = <a className="btn auth-provider" href={googleStart}
+    onClick={e => { if (desktop) { e.preventDefault(); desktop.openExternal(googleStart); setError('') } }}><GoogleMark /> Continuar com Google</a>
 
   const card = (
     <form className={`auth-card ${signup ? 'floating' : ''}`} onSubmit={submit}>

@@ -4,6 +4,7 @@ import { mergePage } from './merge'
 import { seed, useStore } from './store'
 import { go } from './nav'
 import type { Page } from './types'
+import { wsUrl } from './config'
 
 const PUSH_DELAY = 250
 const PULL_EVERY = 15000
@@ -29,6 +30,30 @@ let pushing: Promise<void> | null = null
 let socket: WebSocket | null = null
 let retry = 0
 let presence: { pageId: string | null; blockId: string | null } = { pageId: null, blockId: null }
+let online = false
+let resumeTimer: ReturnType<typeof setTimeout> | undefined
+
+// Local edits the server hasn't confirmed yet, each with the server version it started from (null for a
+// page created here). Kept in localStorage with the cached pages, so edits made offline survive closing
+// the app and are merged block by block with whatever changed on the server meanwhile.
+let unsynced: Record<string, Page | null> = {}
+const UNSYNCED = (ws: string) => `cofdesk-unsynced:${ws}`
+const CACHE_OF = 'cofdesk-cache-workspace'
+const store = {
+  get: (key: string) => { try { return localStorage.getItem(key) } catch { return null } },
+  set: (key: string, value: string) => { try { localStorage.setItem(key, value) } catch { /* full or blocked: still works while open */ } },
+  remove: (key: string) => { try { localStorage.removeItem(key) } catch { /* ignore */ } },
+}
+const saveUnsynced = () => { if (workspaceId) store.set(UNSYNCED(workspaceId), JSON.stringify(unsynced)) }
+const loadUnsynced = (ws: string): Record<string, Page | null> => { try { return JSON.parse(store.get(UNSYNCED(ws)) ?? '{}') } catch { return {} } }
+
+/** Forgets edits the server now has: the local page is the version last pushed (or both are gone). */
+function settleUnsynced() {
+  const pages = useStore.getState().pages
+  let changed = false
+  for (const id of Object.keys(unsynced)) if (pages[id] === synced[id]) { delete unsynced[id]; changed = true }
+  if (changed) saveUnsynced()
+}
 
 const setStatus = (sync: ReturnType<typeof useAuth.getState>['sync']) => useAuth.getState().set({ sync })
 
@@ -44,7 +69,7 @@ function schedulePush() {
 }
 
 async function push() {
-  if (!workspaceId) return
+  if (!workspaceId || !online) return
   if (pushing) { await pushing; return push() }
   const pages = useStore.getState().pages
   const upserts = Object.values(pages).filter(p => synced[p.id] !== p)
@@ -62,6 +87,7 @@ async function push() {
       for (const id of deletes) delete synced[id]
       // the server merged our edit with someone else's: adopt its result
       if (r.merged.length) applyRemote(r.merged, [])
+      settleUnsynced()
       setStatus('saved')
     })
     .catch(handleError)
@@ -89,7 +115,7 @@ function applyRemote(pages: Page[], deleted: string[]) {
 }
 
 async function pull() {
-  if (!workspaceId) return
+  if (!workspaceId || !online) return
   const ws = workspaceId
   try {
     const r = await api<PullResult>(`/workspaces/${ws}/pages?since=${since}`)
@@ -104,8 +130,7 @@ function connect() {
   const { token } = useAuth.getState()
   const ws = workspaceId
   if (!ws || !token) return
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws'
-  const s = new WebSocket(`${proto}://${location.host}/ws?workspace=${ws}&client=${CLIENT_ID}&token=${token}`)
+  const s = new WebSocket(wsUrl(`/ws?workspace=${ws}&client=${CLIENT_ID}&token=${token}`))
   socket = s
   s.onopen = () => {
     retry = 0
@@ -146,6 +171,9 @@ export function setPresence(pageId: string | null, blockId: string | null = null
 
 export function stopSync() {
   clearTimeout(pushTimer)
+  clearTimeout(resumeTimer)
+  online = false
+  unsynced = {}
   clearInterval(pullTimer)
   unsubscribe?.()
   const s = socket
@@ -157,36 +185,83 @@ export function stopSync() {
   useLive.setState({ peers: [], connected: false })
 }
 
-/** Loads a workspace from the server and keeps it in sync until stopSync(). */
+/** Loads a workspace from the server and keeps it in sync until stopSync(). Without a connection it opens the
+ * copy saved on this device, keeps track of the edits, and tries again every few seconds. */
 export async function startSync(id: string) {
   stopSync()
   workspaceId = id
+  unsynced = loadUnsynced(id)
   setStatus('saving')
-  const r = await api<PullResult>(`/workspaces/${id}/pages?since=0`)
-  if (workspaceId !== id) return
-  let pages = Object.fromEntries(r.pages.map(p => [p.id, p]))
-  synced = { ...pages }
-  since = r.serverTime
-  const fresh = !r.pages.length && !r.deleted.length
-  if (fresh) pages = seed()
-  applyingRemote = true
-  useStore.setState(s => ({ pages, currentId: s.currentId && pages[s.currentId] ? s.currentId : null }))
-  applyingRemote = false
+  // the cached pages belong to the workspace last opened on this device
+  const cached = store.get(CACHE_OF) === id ? useStore.getState().pages : {}
   unsubscribe = useStore.subscribe((s, prev) => {
-    if (!applyingRemote && s.pages !== prev.pages) schedulePush()
+    if (applyingRemote || s.pages === prev.pages) return
+    let changed = false
+    for (const pid in s.pages) if (s.pages[pid] !== prev.pages[pid] && !(pid in unsynced)) { unsynced[pid] = synced[pid] ?? null; changed = true }
+    for (const pid in prev.pages) if (!(pid in s.pages) && !(pid in unsynced)) { unsynced[pid] = synced[pid] ?? null; changed = true }
+    if (changed) saveUnsynced()
+    schedulePush()
   })
+
+  let r: PullResult
+  try {
+    r = await api<PullResult>(`/workspaces/${id}/pages?since=0`)
+  } catch (e) {
+    if (workspaceId !== id) return
+    if (e instanceof ApiError) { handleError(e); return }
+    // offline: work on this device's copy and come back for the server later. A cached page without
+    // pending edits is the last version the server confirmed, so it is the base for new edits.
+    synced = { ...cached }
+    applyingRemote = true
+    useStore.setState(s => ({ pages: cached, currentId: s.currentId && cached[s.currentId] ? s.currentId : null }))
+    applyingRemote = false
+    setStatus('offline')
+    resumeTimer = setTimeout(() => { if (workspaceId === id) startSync(id) }, 10_000)
+    return
+  }
+  if (workspaceId !== id) return
+
+  const server = Object.fromEntries(r.pages.map(p => [p.id, p]))
+  synced = { ...server }
+  since = r.serverTime
+  // start from the server's pages, then lay this device's unsaved edits on top
+  const pages: Record<string, Page> = { ...server }
+  for (const [pid, base] of Object.entries(unsynced)) {
+    const mine = cached[pid]
+    const theirs = server[pid]
+    if (!mine) {
+      // deleted here; if someone changed it on the server meanwhile, keep their version
+      if (theirs && (!base || theirs.updatedAt === base.updatedAt)) delete pages[pid]
+      else delete unsynced[pid]
+      continue
+    }
+    pages[pid] = base && theirs ? mergePage(base, mine, theirs) : mine
+  }
+  saveUnsynced()
+  const fresh = !r.pages.length && !r.deleted.length && !Object.keys(unsynced).length
+  const initial = fresh ? seed() : pages
+  online = true
+  store.set(CACHE_OF, id)
+  applyingRemote = !fresh
+  useStore.setState(s => ({ pages: initial, currentId: s.currentId && initial[s.currentId] ? s.currentId : null }))
+  applyingRemote = false
   pullTimer = setInterval(pull, PULL_EVERY)
   connect()
-  if (fresh) await push()
+  if (fresh || Object.keys(unsynced).length) await push()
   else setStatus('saved')
 }
 
 // flush pending edits when the tab is hidden or closed
 addEventListener('visibilitychange', () => { if (document.visibilityState === 'hidden') push() })
-addEventListener('online', () => push().then(pull))
+addEventListener('online', () => {
+  if (online) push().then(pull)
+  else if (workspaceId) startSync(workspaceId)
+})
 
 export async function logout() {
   await push().catch(() => {})
+  if (workspaceId) store.remove(UNSYNCED(workspaceId))
+  store.remove(CACHE_OF)
   api('/auth/logout', { method: 'POST' }).catch(() => {})
   stopSync()
   useStore.setState({ pages: {}, currentId: null })

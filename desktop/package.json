@@ -1,0 +1,75 @@
+{
+  "name": "cofdesk-desktop",
+  "private": true,
+  "description": "Aplicativo de desktop do CofDesk (Electron)",
+  "scripts": {
+    "icon": "node scripts/icon.mjs",
+    "web": "node scripts/web.mjs",
+    "start": "electron app",
+    "dist": "npm run web && electron-builder --publish never",
+    "release": "npm run web && electron-builder --publish always"
+  },
+  "devDependencies": {
+    "electron": "^45.1.0",
+    "electron-builder": "^26.18.0"
+  },
+  "build": {
+    "appId": "com.cofdesk.app",
+    "productName": "CofDesk",
+    "copyright": "© CofDesk",
+    "directories": {
+      "app": "app",
+      "output": "release",
+      "buildResources": "build"
+    },
+    "files": [
+      "main.cjs",
+      "preload.cjs",
+      "icon.png",
+      "web/**/*",
+      "package.json"
+    ],
+    "protocols": [
+      {
+        "name": "CofDesk",
+        "schemes": [
+          "cofdesk"
+        ]
+      }
+    ],
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "freitasscaio",
+        "repo": "cofdesk",
+        "releaseType": "release"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ]
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "artifactName": "CofDesk-Setup-${version}.${ext}"
+    },
+    "mac": {
+      "target": [
+        "dmg",
+        "zip"
+      ],
+      "category": "public.app-category.productivity",
+      "artifactName": "CofDesk-${version}-${arch}.${ext}"
+    },
+    "linux": {
+      "target": [
+        "AppImage"
+      ],
+      "category": "Office",
+      "artifactName": "CofDesk-${version}.${ext}"
+    }
+  }
+}

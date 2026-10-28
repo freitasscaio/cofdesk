@@ -8,6 +8,7 @@ import type { Page } from '../types'
 import { PageIcon } from './icons'
 import { HEX } from './Charts'
 import '../calendar.css'
+import { desktop } from '../config'
 
 // The calendar: events from connected Google / iCloud calendars together with dated database items.
 
@@ -86,7 +87,12 @@ export function CalendarHome() {
   useEffect(() => { loadConnections() }, [])
 
   const connectGoogle = async () => {
-    try { location.href = (await api<{ url: string }>('/calendar/google', { body: {} })).url }
+    try {
+      const { url } = await api<{ url: string }>('/calendar/google', { body: { client: desktop ? 'desktop' : 'web' } })
+      // the desktop app does the Google consent in the system browser, which sends it back through cofdesk://
+      if (desktop) desktop.openExternal(url)
+      else location.href = url
+    }
     catch (e) { useCalendarNotice.getState().set({ error: (e as Error).message }) }
   }
   const remove = async (c: Connection) => {

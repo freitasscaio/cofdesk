@@ -131,6 +131,8 @@ function Privacy() {
         <li><strong>Pessoas do seu workspace</strong>: veem seu nome, e-mail, o conteúdo do workspace e seus comentários.</li>
         <li><strong>Qualquer pessoa com o link</strong>, se você publicar uma página na web. Páginas publicadas pedem aos buscadores que não as indexem, mas quem tiver o link pode vê-las e copiá-las. Você pode tirar a página do ar quando quiser.</li>
         <li><strong>Hospedagem</strong>: {L.hosting}, onde ficam o servidor e o banco de dados.</li>
+        <li><strong>Vercel</strong> (Vercel Inc., EUA), que entrega as páginas do site e recebe o endereço IP de quem o visita.</li>
+        <li><strong>GitHub</strong> (GitHub, Inc., subsidiária da Microsoft, EUA), de onde o aplicativo para computador é baixado e onde ele procura atualizações; o GitHub recebe o endereço IP do computador nessas consultas.</li>
         <li><strong>Envio de e-mails</strong>: {L.emailProvider}, que recebe seu e-mail e nome para enviar o código de confirmação.</li>
         <li><strong>Google</strong> (Google LLC, EUA), se você entrar com o Google ou conectar o Google Agenda.</li>
         <li><strong>Apple</strong> (Apple Inc., EUA), se você conectar uma agenda do iCloud.</li>
@@ -192,6 +194,12 @@ function Privacy() {
         O CofDesk não usa cookies próprios nem cookies de rastreamento. Guardamos no seu navegador apenas o necessário para o serviço
         funcionar (sessão, cópia local para uso offline e preferências). Conteúdo de outros sites só é carregado com o seu consentimento.
         Detalhes na página de <Link to="cookies">cookies e armazenamento</Link>.
+      </p>
+      <p>
+        <strong>Aplicativo para computador.</strong> O aplicativo guarda os mesmos itens no próprio computador, incluindo uma cópia das
+        suas páginas e as edições feitas sem internet, que são enviadas ao servidor quando a conexão volta. Ao sair da conta, essas edições
+        pendentes são apagadas do computador. O login com o Google abre o navegador padrão do sistema e volta ao aplicativo pelo endereço
+        <code> cofdesk://</code>. A cada poucas horas, o aplicativo consulta o GitHub para saber se há uma versão nova.
       </p>
 
       <h2 id="criancas">8. Crianças e adolescentes</h2>

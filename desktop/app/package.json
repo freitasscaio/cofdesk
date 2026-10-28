@@ -1,0 +1,12 @@
+{
+  "name": "cofdesk",
+  "productName": "CofDesk",
+  "version": "0.1.0",
+  "description": "CofDesk: páginas, bancos de dados e agenda",
+  "author": "Caio Freitas",
+  "main": "main.cjs",
+  "private": true,
+  "dependencies": {
+    "electron-updater": "^6.8.11"
+  }
+}

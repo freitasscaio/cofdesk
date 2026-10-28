@@ -1,0 +1,55 @@
+# Builds the CofDesk installers and publishes them as a GitHub Release when a version tag is pushed:
+#   git tag v0.2.0 && git push origin v0.2.0
+# Installed apps find the new Release and update themselves.
+#
+# Repository settings > Secrets and variables > Actions > Variables:
+#   COFDESK_API_URL  address of the CofDesk server, e.g. https://api.cofdesk.com.br (required)
+#   COFDESK_WEB_URL  address of the website, e.g. https://cofdesk.com.br
+name: Aplicativo de desktop
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    strategy:
+      fail-fast: false
+      matrix:
+        # macOS needs an Apple Developer account (signing and notarization) before its build is usable;
+        # add macos-latest here once it is set up.
+        os: [windows-latest, ubuntu-latest]
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+          cache-dependency-path: |
+            package-lock.json
+            desktop/package-lock.json
+            desktop/app/package-lock.json
+
+      - run: npm ci
+      - run: npm ci
+        working-directory: desktop
+      - run: npm ci
+        working-directory: desktop/app
+
+      - name: Versão do app a partir da tag
+        shell: bash
+        working-directory: desktop/app
+        run: npm version "${GITHUB_REF_NAME#v}" --no-git-tag-version --allow-same-version
+
+      - name: Gerar e publicar os instaladores
+        working-directory: desktop
+        run: npm run release
+        env:
+          VITE_API_URL: ${{ vars.COFDESK_API_URL }}
+          VITE_WEB_URL: ${{ vars.COFDESK_WEB_URL }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}

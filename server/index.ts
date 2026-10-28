@@ -7,12 +7,13 @@ import { attachRealtime, broadcast } from './realtime.ts'
 import { mergePage } from '../src/merge.ts'
 import { unfurl } from './unfurl.ts'
 import { aiPrompt, askPrompt, streamAi } from './ai.ts'
-import { PUBLIC_URL, accountFor, googleExchange, identitiesOf, loginCode, providers, redeemCode, startUrl, takeState } from './oauth.ts'
+import { DESKTOP_SCHEME, PUBLIC_URL, WEB_URL, accountFor, type Client, googleExchange, identitiesOf, loginCode, providers, redeemCode, startUrl, takeState } from './oauth.ts'
 import { connectIcloud, connectionsOf, eventsFor, removeConnection, saveGoogle } from './calendar.ts'
 import { codeEmail, mailConfigured, sendMail } from './mail.ts'
 import { deleteAccount, deletionPreview, exportData, logAccess, purgeExpired } from './account.ts'
 
-const PORT = Number(process.env.COFDESK_API_PORT ?? 3001)
+// hosting services (Railway, Render…) say which port to use in PORT
+const PORT = Number(process.env.PORT ?? process.env.COFDESK_API_PORT ?? 3001)
 const SESSION_DAYS = 30
 const DIST = resolve('dist')
 
@@ -63,6 +64,18 @@ function securityHeaders(res: ServerResponse) {
   res.setHeader('X-Frame-Options', 'SAMEORIGIN')
   res.setHeader('Permissions-Policy', 'camera=(), microphone=(), geolocation=()')
   if (PUBLIC_URL.startsWith('https://')) res.setHeader('Strict-Transport-Security', 'max-age=31536000; includeSubDomains')
+}
+
+// Pages from other addresses that may call the API: the website when it is hosted apart (Vercel) and the
+// desktop app, which loads its pages from app://cofdesk. More can be listed in CORS_ORIGINS (comma-separated).
+const ALLOWED_ORIGINS = new Set([
+  new URL(WEB_URL).origin, new URL(PUBLIC_URL).origin, 'app://cofdesk',
+  ...(process.env.CORS_ORIGINS ?? '').split(',').map(s => s.trim()).filter(Boolean),
+])
+function cors(req: IncomingMessage, res: ServerResponse) {
+  const origin = req.headers.origin
+  res.setHeader('Vary', 'Origin')
+  if (origin && ALLOWED_ORIGINS.has(origin)) res.setHeader('Access-Control-Allow-Origin', origin)
 }
 
 function send(res: ServerResponse, status: number, data: unknown) {
@@ -179,13 +192,30 @@ function createOAuthUser(email: string, name: string) {
   return id
 }
 
-/** Finishes a Google sign-in: sends the browser back to the app with a one-time code. */
-function finishLogin(res: ServerResponse, provider: string, profile: Parameters<typeof accountFor>[1]) {
-  const userId = accountFor(provider, profile, createOAuthUser)
-  return redirect(res, `${PUBLIC_URL}/login?oauth=${loginCode(userId)}`)
+/**
+ * Sends the browser back after a Google step. The website gets a redirect; the desktop app is opened through
+ * cofdesk://, from a small page (browsers ask before opening an app, and the tab would otherwise stay blank).
+ */
+function backTo(res: ServerResponse, client: Client, path: string) {
+  if (client === 'web') return redirect(res, `${WEB_URL}${path}`)
+  const href = `${DESKTOP_SCHEME}${path.replace(/^\//, '')}`.replace(/&/g, '&amp;').replace(/"/g, '&quot;')
+  res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'" })
+  res.end(`<!doctype html><html lang="pt-BR"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta http-equiv="refresh" content="0;url=${href}"><title>CofDesk</title></head>
+<body style="font-family:system-ui,sans-serif;display:grid;place-items:center;min-height:90vh;margin:0;color:#37352f;text-align:center">
+<main><h1 style="font-size:22px">Pronto! Volte para o aplicativo CofDesk.</h1>
+<p><a href="${href}" style="color:#0b6bcb">Abrir o CofDesk</a></p>
+<p style="color:#6f6e69;font-size:14px">Você pode fechar esta aba.</p></main></body></html>`)
+  return null
 }
-const loginError = (res: ServerResponse, e: unknown) =>
-  redirect(res, `${PUBLIC_URL}/login?oauth_error=${encodeURIComponent((e as Error).message || 'Não foi possível entrar')}`)
+
+/** Finishes a Google sign-in: sends the person back to the app with a one-time code. */
+function finishLogin(res: ServerResponse, client: Client, provider: string, profile: Parameters<typeof accountFor>[1]) {
+  const userId = accountFor(provider, profile, createOAuthUser)
+  return backTo(res, client, `/login?oauth=${loginCode(userId)}`)
+}
+const loginError = (res: ServerResponse, e: unknown, client: Client = 'web') =>
+  backTo(res, client, `/login?oauth_error=${encodeURIComponent((e as Error).message || 'Não foi possível entrar')}`)
 
 // ---------- version history ----------
 // Every save is kept as a version. Consecutive saves by the same person within a few minutes
@@ -281,9 +311,10 @@ const routes: [string, RegExp, Handler][] = [
 
   // ---------- sign in with Google ----------
   ['GET', /^\/api\/auth\/providers$/, () => [200, providers()]],
-  ['GET', /^\/api\/auth\/google\/start$/, (_req, _p, _url, res) => {
-    try { return redirect(res, startUrl('google', 'login')) }
-    catch { return loginError(res, new Error('O login com Google ainda não foi configurado neste servidor.')) }
+  ['GET', /^\/api\/auth\/google\/start$/, (_req, _p, url, res) => {
+    const client: Client = url.searchParams.get('client') === 'desktop' ? 'desktop' : 'web'
+    try { return redirect(res, startUrl('google', 'login', null, client)) }
+    catch { return loginError(res, new Error('O login com Google ainda não foi configurado neste servidor.'), client) }
   }],
   ['GET', /^\/api\/auth\/google\/callback$/, async (_req, _p, url, res) => {
     const fail = url.searchParams.get('error')
@@ -295,14 +326,14 @@ const routes: [string, RegExp, Handler][] = [
         const r = await googleExchange(String(url.searchParams.get('code')), purpose)
         if (!r.refreshToken || !purpose.user_id) throw new Error('O Google não liberou acesso contínuo. Tente de novo.')
         saveGoogle(purpose.user_id, r.profile.email ?? r.profile.subject, r.refreshToken)
-        return redirect(res, `${PUBLIC_URL}/?calendar=google`)
-      } catch (e) { return redirect(res, `${PUBLIC_URL}/?calendar_error=${encodeURIComponent((e as Error).message)}`) }
+        return backTo(res, purpose.client, '/?calendar=google')
+      } catch (e) { return backTo(res, purpose.client, `/?calendar_error=${encodeURIComponent((e as Error).message)}`) }
     }
     try {
       if (fail) throw new Error(fail === 'access_denied' ? 'Login cancelado.' : 'O Google recusou o login.')
       const { profile } = await googleExchange(String(url.searchParams.get('code')), purpose)
-      return finishLogin(res, 'google', profile)
-    } catch (e) { return loginError(res, e) }
+      return finishLogin(res, purpose.client, 'google', profile)
+    } catch (e) { return loginError(res, e, purpose.client) }
   }],
   ['POST', /^\/api\/auth\/finish$/, async req => {
     const userId = redeemCode(String((await body(req)).code ?? ''))
@@ -314,9 +345,10 @@ const routes: [string, RegExp, Handler][] = [
 
   // ---------- connected calendars ----------
   ['GET', /^\/api\/calendar\/connections$/, req => [200, { connections: connectionsOf(auth(req).id), google: providers().google }]],
-  ['POST', /^\/api\/calendar\/google$/, req => {
+  ['POST', /^\/api\/calendar\/google$/, async req => {
     const user = auth(req)
-    try { return [200, { url: startUrl('google', 'calendar', user.id) }] }
+    const client: Client = (await body(req)).client === 'desktop' ? 'desktop' : 'web'
+    try { return [200, { url: startUrl('google', 'calendar', user.id, client) }] }
     catch { throw new HttpError(503, 'A conexão com o Google ainda não foi configurada neste servidor.') }
   }],
   ['POST', /^\/api\/calendar\/icloud$/, async req => {
@@ -602,6 +634,15 @@ const server = createServer(async (req, res) => {
   securityHeaders(res)
   try {
     if (url.pathname.startsWith('/api/')) {
+      cors(req, res)
+      if (req.method === 'OPTIONS') {
+        res.writeHead(204, {
+          'Access-Control-Allow-Methods': 'GET, POST, PATCH, DELETE',
+          'Access-Control-Allow-Headers': 'Content-Type, Authorization, X-Client-Id',
+          'Access-Control-Max-Age': '600',
+        })
+        return void res.end()
+      }
       for (const [method, re, handler] of routes) {
         const m = url.pathname.match(re)
         if (m && req.method === method) {

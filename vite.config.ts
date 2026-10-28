@@ -5,6 +5,8 @@ export default defineConfig({
   plugins: [react()],
   server: {
     port: 5173,
+    // the desktop app's build output (installers, unpacked app) is not part of the website
+    watch: { ignored: ['**/desktop/**'] },
     proxy: {
       '/api': 'http://localhost:3001',
       '/ws': { target: 'ws://localhost:3001', ws: true },

@@ -11,13 +11,14 @@ import { markdownToBlocks, inline, toMarkdown } from '../markdown'
 import { blockText } from '../blocks'
 import type { Block } from '../types'
 import { PageIcon } from './icons'
+import { apiUrl } from '../config'
 
 // ---------- talking to the server ----------
 
 /** Streams an AI answer from the server, calling onText with the text so far. */
 export async function streamAi(path: 'ai' | 'ask', body: object, onText: (all: string) => void, signal: AbortSignal) {
   const { token, workspaceId } = useAuth.getState()
-  const res = await fetch(`/api/workspaces/${workspaceId}/${path}`, {
+  const res = await fetch(apiUrl(`/workspaces/${workspaceId}/${path}`), {
     method: 'POST',
     signal,
     headers: { 'Content-Type': 'application/json', 'X-Client-Id': CLIENT_ID, Authorization: `Bearer ${token}` },
